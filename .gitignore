@@ -25,5 +25,5 @@ Thumbs.db
 *.log
 application-local.properties
 
-# AI instructions (local only)
+# Local overrides and scratch files
 claude.md
