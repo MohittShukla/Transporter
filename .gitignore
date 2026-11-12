@@ -1,0 +1,29 @@
+# Build
+target/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+
+# Spring Boot
+*.log
+application-local.properties
+
+# AI instructions (local only)
+claude.md
