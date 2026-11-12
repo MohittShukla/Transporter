@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.Matchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -145,6 +146,25 @@ class TransporterControllerTest {
                 .andExpect(jsonPath("$.status").value("success"))
                 .andExpect(jsonPath("$.assignments", hasSize(5)))
                 .andExpect(jsonPath("$.selectedTransporters", hasSize(lessThanOrEqualTo(3))));
+    }
+
+    @Test
+    @Order(8)
+    @DisplayName("Root URL: redirects to Swagger UI")
+    void rootUrl_redirectsToSwagger() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/swagger-ui.html"));
+    }
+
+    @Test
+    @Order(9)
+    @DisplayName("Unmapped route: returns 404 Not Found")
+    void unmappedRoute_returns404() throws Exception {
+        mockMvc.perform(get("/non-existent-endpoint"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value(containsString("Resource not found")));
     }
 
     // ── Helper: build test data ──
