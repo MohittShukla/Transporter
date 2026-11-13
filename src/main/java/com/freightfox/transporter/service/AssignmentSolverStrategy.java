@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * Strategy interface for solving transporter-to-lane assignment optimization problems.
  * Decouples the optimization algorithm from orchestration services, allowing alternative
- * algorithms (e.g. Linear Programming, Hungarian Algorithm, Genetic Algorithms) to be
+ * algorithms (e.g. Linear Programming, Genetic Algorithms) to be
  * plugged in without changing service code.
  */
 public interface AssignmentSolverStrategy {

@@ -66,7 +66,8 @@ The project follows a **layered architecture** with clean separation of concerns
 
 | Pattern | Where | Why |
 |---------|-------|-----|
-| **Strategy Pattern** | `AssignmentSolverStrategy` → `AssignmentSolver` | Decouples solver algorithm from service, allowing seamless swap to LP or Hungarian solver |
+| **Strategy Pattern** | `AssignmentSolverStrategy` → `AssignmentSolver` | Decouples solver algorithm from service, allowing seamless swap to LP |
+
 | **Layered Architecture** | Controller → Service → Store/Strategy | Each layer has a single responsibility |
 | **DTO Pattern (Java 17 Records)** | `dto/request/`, `dto/response/` | Immutable, boilerplate-free data contracts decoupled from domain models |
 | **Atomic Snapshot (Thread-Safety)** | `InMemoryDataStore` with `AtomicReference` | Guarantees atomic writes and iteration safety under concurrent access |
@@ -94,7 +95,7 @@ The solver uses **combinatorial enumeration + greedy assignment**:
 | **Space** | O(T × L) for the quote lookup map |
 | **At scale (T=7, k=3)** | C(7,3) × 5 = 175 operations — instant |
 
-> **Why brute-force over Hungarian Algorithm or LP?** At this assignment's scale (T ≤ 10, L ≤ 10), the exhaustive approach is simple, correct, and explainable. No premature optimization.
+> **Why brute-force over LP?** At this assignment's scale (T ≤ 10, L ≤ 10), the exhaustive approach is simple, correct, and explainable. No premature optimization.
 
 ---
 
