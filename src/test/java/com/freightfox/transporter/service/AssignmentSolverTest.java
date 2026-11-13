@@ -70,12 +70,8 @@ class AssignmentSolverTest {
         List<Integer> assignedLaneIds = result.getAssignments().stream()
                 .map(AssignmentDetail::getLaneId).sorted().collect(Collectors.toList());
         assertEquals(List.of(1, 2, 3, 4, 5), assignedLaneIds);
-
-        // Print for debugging
-        System.out.println("Test Case 1 total cost: " + result.getTotalCost());
-        System.out.println("Selected transporters: " + result.getSelectedTransporters());
-        result.getAssignments().forEach(a ->
-                System.out.println("  Lane " + a.getLaneId() + " -> Transporter " + a.getTransporterId()));
+        assertEquals(60139, result.getTotalCost());
+        assertEquals(List.of(1, 4, 5), result.getSelectedTransporters());
     }
 
     // ── Test Case 2 from assignment (sparse quotes) ──
@@ -103,9 +99,8 @@ class AssignmentSolverTest {
         assertEquals("success", result.getStatus());
         assertEquals(5, result.getAssignments().size());
         assertTrue(result.getSelectedTransporters().size() <= 3);
-
-        System.out.println("Test Case 2 total cost: " + result.getTotalCost());
-        System.out.println("Selected transporters: " + result.getSelectedTransporters());
+        assertEquals(7500, result.getTotalCost());
+        assertEquals(List.of(1, 2, 3), result.getSelectedTransporters());
     }
 
     // ── Edge cases ──

@@ -2,11 +2,10 @@ package com.freightfox.transporter.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.freightfox.transporter.dto.request.*;
+import com.freightfox.transporter.store.InMemoryDataStore;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -23,10 +22,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * End-to-end integration tests for Transporter REST endpoints.
+ * Completely isolated tests with pre-test datastore resets.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class TransporterControllerTest {
 
     @Autowired
@@ -35,13 +34,20 @@ class TransporterControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private InMemoryDataStore dataStore;
+
     private static final String INPUT_URL = "/api/v1/transporters/input";
     private static final String ASSIGNMENT_URL = "/api/v1/transporters/assignment";
+
+    @BeforeEach
+    void setUp() {
+        dataStore.clear();
+    }
 
     // ── API 1 Tests ──
 
     @Test
-    @Order(1)
     @DisplayName("API 1: valid input returns 200 success")
     void submitInput_valid() throws Exception {
         InputRequest request = buildTestCase1Input();
@@ -55,7 +61,6 @@ class TransporterControllerTest {
     }
 
     @Test
-    @Order(2)
     @DisplayName("API 1: empty lanes returns 400")
     void submitInput_emptyLanes() throws Exception {
         InputRequest request = new InputRequest(
@@ -72,7 +77,6 @@ class TransporterControllerTest {
     }
 
     @Test
-    @Order(3)
     @DisplayName("API 1: null body returns 400")
     void submitInput_nullBody() throws Exception {
         mockMvc.perform(post(INPUT_URL)
@@ -84,7 +88,18 @@ class TransporterControllerTest {
     // ── API 2 Tests ──
 
     @Test
-    @Order(4)
+    @DisplayName("API 2: calling assignment before input returns 400")
+    void getAssignment_beforeInputReturns400() throws Exception {
+        AssignmentRequest assignmentReq = new AssignmentRequest(3);
+        mockMvc.perform(post(ASSIGNMENT_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(assignmentReq)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value(containsString("No input data available")));
+    }
+
+    @Test
     @DisplayName("API 2: returns optimized assignment after valid input")
     void getAssignment_afterValidInput() throws Exception {
         InputRequest input = buildTestCase1Input();
@@ -99,13 +114,12 @@ class TransporterControllerTest {
                         .content(objectMapper.writeValueAsString(assignmentReq)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
-                .andExpect(jsonPath("$.totalCost").isNumber())
+                .andExpect(jsonPath("$.totalCost").value(60139))
                 .andExpect(jsonPath("$.assignments", hasSize(5)))
                 .andExpect(jsonPath("$.selectedTransporters", hasSize(lessThanOrEqualTo(3))));
     }
 
     @Test
-    @Order(5)
     @DisplayName("API 2: missing maxTransporters returns 400")
     void getAssignment_missingMax() throws Exception {
         mockMvc.perform(post(ASSIGNMENT_URL)
@@ -116,7 +130,6 @@ class TransporterControllerTest {
     }
 
     @Test
-    @Order(6)
     @DisplayName("API 2: maxTransporters=0 returns 400")
     void getAssignment_zeroMax() throws Exception {
         AssignmentRequest request = new AssignmentRequest(0);
@@ -129,7 +142,6 @@ class TransporterControllerTest {
     // ── Test Case 2: sparse quotes ──
 
     @Test
-    @Order(7)
     @DisplayName("Test Case 2: sparse quotes full integration")
     void testCase2_sparseQuotes() throws Exception {
         InputRequest input = buildTestCase2Input();
@@ -144,12 +156,12 @@ class TransporterControllerTest {
                         .content(objectMapper.writeValueAsString(assignmentReq)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
+                .andExpect(jsonPath("$.totalCost").value(7500))
                 .andExpect(jsonPath("$.assignments", hasSize(5)))
                 .andExpect(jsonPath("$.selectedTransporters", hasSize(lessThanOrEqualTo(3))));
     }
 
     @Test
-    @Order(8)
     @DisplayName("Root URL: redirects to Swagger UI")
     void rootUrl_redirectsToSwagger() throws Exception {
         mockMvc.perform(get("/"))
@@ -158,7 +170,6 @@ class TransporterControllerTest {
     }
 
     @Test
-    @Order(9)
     @DisplayName("Unmapped route: returns 404 Not Found")
     void unmappedRoute_returns404() throws Exception {
         mockMvc.perform(get("/non-existent-endpoint"))

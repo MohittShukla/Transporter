@@ -6,6 +6,9 @@ import com.freightfox.transporter.exception.NoFeasibleSolutionException;
 import com.freightfox.transporter.model.Lane;
 import com.freightfox.transporter.model.LaneQuote;
 import com.freightfox.transporter.model.Transporter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -16,10 +19,14 @@ import java.util.stream.Collectors;
 
 /**
  * Core assignment solver using combinatorial enumeration and greedy lane assignment.
- * Finds the cost-minimized assignment adhering to the maximum transporter constraint.
+ * Implements {@link AssignmentSolverStrategy} to find the cost-minimized assignment
+ * adhering to the maximum transporter constraint.
  */
 @Service
-public class AssignmentSolver {
+@Primary
+public class AssignmentSolver implements AssignmentSolverStrategy {
+
+    private static final Logger log = LoggerFactory.getLogger(AssignmentSolver.class);
 
     /**
      * Finds the optimal assignment of transporters to lanes.
@@ -30,8 +37,13 @@ public class AssignmentSolver {
      * @return AssignmentResponse containing itemized assignments and total cost
      * @throws NoFeasibleSolutionException if no combination covers all lanes
      */
+    @Override
     public AssignmentResponse solve(List<Lane> lanes, List<Transporter> transporters,
                                     int maxTransporters) {
+
+        long startTime = System.currentTimeMillis();
+        log.info("Starting assignment optimization for {} lanes, {} transporters with maxTransporters={}",
+                lanes.size(), transporters.size(), maxTransporters);
 
         Map<Integer, Map<Integer, Integer>> quoteLookup = buildQuoteLookup(transporters);
 
@@ -41,6 +53,7 @@ public class AssignmentSolver {
         long bestCost = Long.MAX_VALUE;
         List<AssignmentDetail> bestAssignments = null;
         List<Integer> bestTransporterIds = null;
+        int evaluatedCombinations = 0;
 
         List<Integer> transporterIds = transporters.stream()
                 .map(Transporter::getId)
@@ -50,6 +63,7 @@ public class AssignmentSolver {
             List<List<Integer>> combinations = generateCombinations(transporterIds, size);
 
             for (List<Integer> combo : combinations) {
+                evaluatedCombinations++;
                 AssignmentResult result = tryAssignment(lanes, combo, quoteLookup);
 
                 if (result == null) {
@@ -67,6 +81,7 @@ public class AssignmentSolver {
         }
 
         if (bestAssignments == null) {
+            log.warn("Optimization failed: no feasible assignment found within limit of {}", maxTransporters);
             throw new NoFeasibleSolutionException(
                     "No feasible assignment exists with at most " + maxTransporters +
                     " transporters covering all " + lanes.size() + " lanes.");
@@ -77,6 +92,10 @@ public class AssignmentSolver {
                 .distinct()
                 .sorted()
                 .collect(Collectors.toList());
+
+        long elapsed = System.currentTimeMillis() - startTime;
+        log.info("Optimization completed in {}ms. Evaluated {} combinations. Selected {} transporters with totalCost={}",
+                elapsed, evaluatedCombinations, actuallyUsed.size(), bestCost);
 
         return new AssignmentResponse("success", bestCost, bestAssignments, actuallyUsed);
     }

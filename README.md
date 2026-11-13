@@ -47,25 +47,32 @@ The project follows a **layered architecture** with clean separation of concerns
 ┌──────────────────────────▼─────────────────────────────────┐
 │  Service Layer            TransporterService               │
 │  ─ DTO ↔ Model conversion                                 │
-│  ─ Orchestrates store + solver                             │
+│  ─ Orchestrates store + strategy solver                    │
 └────────────┬─────────────────────────────────┬─────────────┘
              │                                 │
 ┌────────────▼──────────┐     ┌────────────────▼─────────────┐
-│  InMemoryDataStore    │     │  AssignmentSolver             │
-│  ─ Thread-safe store  │     │  ─ Combinatorial backtracking │
-│  ─ Lanes & Transporters│    │  ─ Greedy per-lane assignment │
-└───────────────────────┘     └──────────────────────────────┘
+│  InMemoryDataStore    │     │  AssignmentSolverStrategy     │
+│  ─ Atomic snapshot ref│     │  ─ Pluggable strategy interface
+│  ─ Lock-free & safe   │     └────────────────┬─────────────┘
+└───────────────────────┘                      │
+                               ┌───────────────▼─────────────┐
+                               │  AssignmentSolver            │
+                               │  ─ Combinatorial backtracking│
+                               │  ─ Greedy per-lane assignment│
+                               └─────────────────────────────┘
 ```
 
 ### Design Patterns
 
 | Pattern | Where | Why |
 |---------|-------|-----|
-| **Layered Architecture** | Controller → Service → Store/Solver | Each layer has a single responsibility |
-| **DTO Pattern** | `dto/request/`, `dto/response/` | Decouples API shape from domain model |
-| **Singleton (Spring-managed)** | `InMemoryDataStore`, `AssignmentSolver` | Spring `@Component` creates one instance |
+| **Strategy Pattern** | `AssignmentSolverStrategy` → `AssignmentSolver` | Decouples solver algorithm from service, allowing seamless swap to LP or Hungarian solver |
+| **Layered Architecture** | Controller → Service → Store/Strategy | Each layer has a single responsibility |
+| **DTO Pattern (Java 17 Records)** | `dto/request/`, `dto/response/` | Immutable, boilerplate-free data contracts decoupled from domain models |
+| **Atomic Snapshot (Thread-Safety)** | `InMemoryDataStore` with `AtomicReference` | Guarantees atomic writes and iteration safety under concurrent access |
+| **Singleton (Spring-managed)** | `InMemoryDataStore`, `AssignmentSolver` | Spring `@Component` / `@Service` creates one instance |
 | **Global Exception Handler** | `GlobalExceptionHandler` | Centralized error formatting, no try-catch in controllers |
-| **Constructor Injection** | All Spring beans | Immutable dependencies, testable |
+| **Constructor Injection** | All Spring beans | Immutable dependencies, clean testability |
 
 ---
 
@@ -270,7 +277,10 @@ mvn clean test
 | Test Class | Tests | What It Covers |
 |------------|-------|----------------|
 | `AssignmentSolverTest` | 7 | Algorithm correctness: TC1, TC2, single lane, maxTransporters > available, infeasible (uncovered lane), infeasible (not enough transporters), cheaper combo selection |
-| `TransporterControllerTest` | 7 | Full HTTP integration: valid input, empty lanes (400), null body (400), assignment after input (200), missing maxTransporters (400), zero maxTransporters (400), sparse quotes TC2 |
+| `TransporterControllerTest` | 10 | Full HTTP integration: valid input, empty lanes (400), null body (400), assignment after input (200), assignment before input (400), missing maxTransporters (400), zero maxTransporters (400), sparse quotes TC2, root redirect (302), 404 handler |
+| `TransporterServiceTest` | 3 | Isolated service unit tests with Mockito mocks: mapping/persistence, NoDataException guard, delegation to strategy solver |
+| `InMemoryDataStoreTest` | 3 | Store unit & multi-threaded concurrency safety tests: initial state, atomic save, concurrent read/write thread-safety |
+| **Total** | **23** | **100% test pass rate across unit, service, concurrency, and integration layers** |
 
 ---
 
@@ -341,7 +351,8 @@ src/main/java/com/freightfox/transporter/
 │   └── Transporter.java
 ├── service/
 │   ├── TransporterService.java          # Business logic orchestration
-│   └── AssignmentSolver.java            # Combinatorial optimization solver
+│   ├── AssignmentSolverStrategy.java    # Strategy interface for optimization
+│   └── AssignmentSolver.java            # Combinatorial optimization solver implementation
 └── store/
     └── InMemoryDataStore.java           # Thread-safe in-memory storage
 ```

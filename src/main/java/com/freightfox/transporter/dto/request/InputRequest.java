@@ -5,38 +5,18 @@ import jakarta.validation.constraints.NotEmpty;
 
 import java.util.List;
 
-public class InputRequest {
+/**
+ * Immutable DTO representing input ingestion payload using Java 17 record.
+ */
+public record InputRequest(
+        @NotEmpty(message = "Lanes list cannot be empty")
+        @Valid
+        List<LaneDto> lanes,
 
-    @NotEmpty(message = "Lanes list cannot be empty")
-    @Valid
-    private List<LaneDto> lanes;
-
-    @NotEmpty(message = "Transporters list cannot be empty")
-    @Valid
-    private List<TransporterDto> transporters;
-
-    public InputRequest() {
-    }
-
-    public InputRequest(List<LaneDto> lanes, List<TransporterDto> transporters) {
-        this.lanes = lanes;
-        this.transporters = transporters;
-    }
-
-    public List<LaneDto> getLanes() {
-        return lanes;
-    }
-
-    public void setLanes(List<LaneDto> lanes) {
-        this.lanes = lanes;
-    }
-
-    public List<TransporterDto> getTransporters() {
-        return transporters;
-    }
-
-    public void setTransporters(List<TransporterDto> transporters) {
-        this.transporters = transporters;
-    }
+        @NotEmpty(message = "Transporters list cannot be empty")
+        @Valid
+        List<TransporterDto> transporters
+) {
+    public List<LaneDto> getLanes() { return lanes(); }
+    public List<TransporterDto> getTransporters() { return transporters(); }
 }
-
